@@ -1,65 +1,53 @@
 import cv2
 import numpy as np
 import sklearn as sk
+import matplotlib.pyplot as plt
 
 face_target_size = (48,48)
 
-
 from os import listdir
 
+def read_data(path):
+    posdir = path + '/pos'
+    negdir = path + '/neg'
 
-posdir = '../../smiles/pos'
-negdir = '../../smiles/neg'
+    pos = listdir(posdir)
+    neg = listdir(negdir)
 
-pos = listdir(posdir)
-neg = listdir(negdir)
-print(len(pos),len(neg))
+    image = np.zeros([len(pos) + len(neg), face_target_size[0], face_target_size[1]])
+    label = np.zeros([len(pos) + len(neg), 1])
 
-posfaces = np.zeros((len(pos),face_target_size[0]*face_target_size[1]))
+    i = 0
+    for p in pos:
+        pic = cv2.imread(posdir + '/' + p, cv2.IMREAD_GRAYSCALE)
+        image[i,:,:] = pic
+        label[i,:] = 1
+        
+        i += 1
 
-Visualise = False
-if Visualise:
-    print("Press 'q' to stop the iteration!")
-    print("Set 'Visualise=False' to speed things up.")
+    for p in neg:
+        pic = cv2.imread(negdir + '/' + p, cv2.IMREAD_GRAYSCALE)
+        image[i,:,:] = pic
 
-i=0
-for p in pos:
-    im = cv2.imread(posdir+'/'+p, cv2.IMREAD_GRAYSCALE)
+        i += 1
 
-    if Visualise:
-        print(p, im.shape)
-        cv2.imshow("face",im)
-    posfaces[i,:] = im.flatten()
-    i += 1
+    permu = np.random.permutation(image.shape[0])
+
+    image = image[permu]
+    label = label[permu]
+
+    # image = image/255
+
+    return image, label
+
+def normalize(image):
+    image /= 255
+    return image
+
+def split_data(X, y):
+    from sklearn.model_selection import train_test_split
     
-    if Visualise:
-        k = cv2.waitKey(500) 
-        if k!=-1:
-            print(k)
-        if k & 0xFF == ord('q'):
-            break
-if Visualise:    
-    cv2.destroyWindow("face")
+    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.5)
+    X_valid, X_test, y_valid, y_test = train_test_split(X_valid, y_valid, test_size=0.5)
 
-negfaces = np.zeros((len(neg),face_target_size[0]*face_target_size[1]))
-
-i=0
-for p in neg:
-    im = cv2.imread(negdir+'/'+p, cv2.IMREAD_GRAYSCALE)
-    negfaces[i,:] = im.flatten()
-    i+=1
-
-print(posfaces.shape,negfaces.shape)
-
-X = np.concatenate((posfaces, negfaces), axis=0)
-y = np.concatenate((np.ones((posfaces.shape[0],1)), np.zeros((negfaces.shape[0],1))), axis=0)
-
-
-permu = np.random.permutation(X.shape[0])
-X = X[permu, :]
-y = y[permu, :]
-
-X = X/255
-
-np.savetxt("image.csv", X, delimiter=',')
-np.savetxt("label.csv", y, delimiter=',')
+    return X_train, X_valid, X_test, y_train, y_valid, y_test
